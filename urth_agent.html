@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Earth Intelligence Agent</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root {
+    --bg:        #080e0a;
+    --bg2:       #0d1a10;
+    --bg3:       #122016;
+    --border:    #1e3525;
+    --green:     #2ecc71;
+    --green2:    #27ae60;
+    --amber:     #f39c12;
+    --red:       #e74c3c;
+    --blue:      #3498db;
+    --purple:    #9b59b6;
+    --text:      #d4e8d8;
+    --muted:     #6b8f72;
+    --mono:      'Space Mono', monospace;
+    --sans:      'DM Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(46,204,113,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(46,204,113,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, #1a4a28, #2ecc71);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    box-shadow: 0 0 20px rgba(46,204,113,0.3);
+    flex-shrink: 0;
+  }
+
+  h1 {
+    font-family: var(--mono);
+    font-size: 1.1rem;
+    color: var(--green);
+    letter-spacing: 0.05em;
+  }
+
+  .subtitle {
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-family: var(--mono);
+    margin-top: 2px;
+  }
+
+  .badge {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    background: rgba(46,204,113,0.1);
+    border: 1px solid rgba(46,204,113,0.3);
+    color: var(--green);
+    padding: 4px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.08em;
+  }
+
+  /* Two column layout */
+  .layout {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  /* Panels */
+  .panel {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .panel-head {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel-head .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+  }
+
+  .panel-body { padding: 16px; }
+
+  /* Query form */
+  label {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--muted);
+    font-family: var(--mono);
+    margin-bottom: 6px;
+    letter-spacing: 0.05em;
+  }
+
+  select, input[type="text"] {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 0.85rem;
+    margin-bottom: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  select:focus, input[type="text"]:focus {
+    border-color: rgba(46,204,113,0.5);
+  }
+
+  select option { background: var(--bg2); }
+
+  .run-btn {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, #1a5c2e, #2ecc71);
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+
+  .run-btn:hover { opacity: 0.9; }
+  .run-btn:active { transform: scale(0.98); }
+  .run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Pipeline visualizer */
+  .pipeline {
+    margin-top: 16px;
+  }
+
+  .pipe-title {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .pipe-node {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    margin-bottom: 4px;
+    background: var(--bg3);
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .pipe-node::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--border);
+    transition: background 0.3s;
+  }
+
+  .pipe-node.active::before  { background: var(--amber); }
+  .pipe-node.done::before    { background: var(--green); }
+  .pipe-node.error::before   { background: var(--red); }
+
+  .pipe-node.active {
+    border-color: rgba(243,156,18,0.4);
+    background: rgba(243,156,18,0.05);
+  }
+  .pipe-node.done {
+    border-color: rgba(46,204,113,0.3);
+    background: rgba(46,204,113,0.04);
+  }
+
+  .node-icon {
+    font-size: 14px;
+    width: 24px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .node-label {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--text);
+    flex: 1;
+  }
+
+  .node-source {
+    font-size: 0.62rem;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  .node-status {
+    font-size: 0.65rem;
+    font-family: var(--mono);
+  }
+  .node-status.pending { color: var(--muted); }
+  .node-status.active  { color: var(--amber); }
+  .node-status.done    { color: var(--green); }
+
+  .pipe-arrow {
+    text-align: center;
+    color: var(--border);
+    font-size: 10px;
+    margin: 1px 0;
+    font-family: var(--mono);
+  }
+
+  /* MCP badge */
+  .mcp-tag {
+    font-size: 0.58rem;
+    background: rgba(155,89,182,0.15);
+    border: 1px solid rgba(155,89,182,0.3);
+    color: #c39bd3;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    flex-shrink: 0;
+  }
+
+  /* Right panel — output */
+  .output-panel {
+    min-height: 500px;
+  }
+
+  .output-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 10px 16px 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+  }
+
+  .tab {
+    padding: 6px 14px;
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    border-radius: 4px 4px 0 0;
+  }
+
+  .tab.active {
+    color: var(--green);
+    border-bottom-color: var(--green);
+  }
+
+  .tab-content { display: none; padding: 20px; }
+  .tab-content.active { display: block; }
+
+  /* Idle state */
+  .idle-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 380px;
+    color: var(--muted);
+    text-align: center;
+    gap: 12px;
+  }
+
+  .idle-globe {
+    font-size: 48px;
+    opacity: 0.3;
+    animation: pulse 3s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.3; transform: scale(1); }
+    50%       { opacity: 0.5; transform: scale(1.05); }
+  }
+
+  .idle-text {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+  }
+
+  /* Report output */
+  .report-text {
+    font-family: var(--sans);
+    font-size: 0.88rem;
+    line-height: 1.75;
+    color: var(--text);
+    white-space: pre-wrap;
+  }
+
+  /* Data cards grid */
+  .data-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .data-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+  }
+
+  .data-card-title {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .data-card-body {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--text);
+    line-height: 1.7;
+    white-space: pre-wrap;
+  }
+
+  /* MCP flow tab */
+  .mcp-flow {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    line-height: 1.9;
+  }
+
+  .mcp-call {
+    padding: 8px 12px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    border-left: 3px solid var(--purple);
+  }
+
+  .mcp-call .call-name { color: #c39bd3; }
+  .mcp-call .call-args { color: var(--muted); }
+  .mcp-call .call-result { color: var(--green); margin-top: 4px; }
+
+  /* Loading shimmer */
+  @keyframes shimmer {
+    0%   { background-position: -400px 0; }
+    100% { background-position: 400px 0; }
+  }
+
+  .shimmer {
+    background: linear-gradient(90deg, var(--bg3) 25%, var(--border) 50%, var(--bg3) 75%);
+    background-size: 400px 100%;
+    animation: shimmer 1.4s infinite;
+    border-radius: 4px;
+    height: 14px;
+    margin-bottom: 8px;
+  }
+
+  /* Risk badge */
+  .risk-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+  }
+
+  .risk-LOW      { background: rgba(46,204,113,0.15); color: var(--green); border: 1px solid rgba(46,204,113,0.3); }
+  .risk-MODERATE { background: rgba(243,156,18,0.15); color: var(--amber); border: 1px solid rgba(243,156,18,0.3); }
+  .risk-HIGH     { background: rgba(231,76,60,0.15);  color: var(--red);   border: 1px solid rgba(231,76,60,0.3); }
+  .risk-EXTREME  { background: rgba(231,76,60,0.25);  color: #ff6b6b;     border: 1px solid rgba(231,76,60,0.5); }
+
+  /* Footer */
+  footer {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--muted);
+    flex-wrap: wrap;
+  }
+
+  .footer-tag {
+    padding: 3px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+  }
+
+  @media (max-width: 768px) {
+    .layout { grid-template-columns: 1fr; }
+    .data-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Leaflet dark popup override */
+  .dark-popup .leaflet-popup-content-wrapper {
+    background: #0d1a10;
+    border: 1px solid #1e3525;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.7);
+    padding: 0;
+    color: #d4e8d8;
+  }
+  .dark-popup .leaflet-popup-content { margin: 0; }
+  .dark-popup .leaflet-popup-tip-container .leaflet-popup-tip { background: #0d1a10; }
+  .dark-popup .leaflet-popup-close-button { color: #6b8f72 !important; top:8px; right:10px; font-size:16px; }
+  .leaflet-container { background: #080e0a; }
+  .leaflet-control-zoom a { background: #0d1a10 !important; color: #2ecc71 !important; border-color: #1e3525 !important; }
+  .leaflet-control-attribution { background: rgba(8,14,10,0.8) !important; color: #3a5c40 !important; font-size: 9px; }
+  .frp-tooltip { background: transparent !important; border: none !important; box-shadow: none !important; }
+  .frp-tooltip::before { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="logo">🌍</div>
+    <div>
+      <h1>EARTH INTELLIGENCE AGENT</h1>
+      <div class="subtitle">LangGraph pipeline · MCP server · Environmental AI</div>
+    </div>
+    <div class="badge">DEMO v1.0</div>
+  </header>
+
+  <div class="layout">
+
+    <!-- LEFT: Controls + Pipeline -->
+    <div>
+      <!-- Query Panel -->
+      <div class="panel" style="margin-bottom:1rem">
+        <div class="panel-head"><div class="dot"></div>Query Configuration</div>
+        <div class="panel-body">
+          <label>REGION</label>
+          <select id="region">
+            <option value="Northern California">Northern California</option>
+            <option value="Southern California">Southern California</option>
+            <option value="Pacific Northwest">Pacific Northwest</option>
+            <option value="Texas">Texas</option>
+            <option value="Florida">Florida</option>
+            <option value="Amazon">Amazon Basin</option>
+          </select>
+
+          <label>ANALYSIS TYPE</label>
+          <select id="analysis">
+            <option value="full">Full Environmental Assessment</option>
+            <option value="wildfire">Wildfire Risk Only</option>
+            <option value="air">Air Quality Focus</option>
+            <option value="climate">Climate Risk Focus</option>
+          </select>
+
+          <label>CUSTOM QUERY (optional)</label>
+          <input type="text" id="custom" placeholder="e.g. Is it safe to go hiking this weekend?" />
+
+          <button class="run-btn" id="runBtn" onclick="runAgent()">
+            ▶ RUN AGENT
+          </button>
+        </div>
+      </div>
+
+      <!-- Pipeline Visualizer -->
+      <div class="panel">
+        <div class="panel-head"><div class="dot"></div>LangGraph Pipeline</div>
+        <div class="panel-body">
+          <div class="pipeline" id="pipeline">
+
+            <div class="pipe-node" id="node-parse">
+              <div class="node-icon">🧠</div>
+              <div>
+                <div class="node-label">parse_query</div>
+                <div class="node-source">Intent detection</div>
+              </div>
+              <div class="node-status pending" id="st-parse">IDLE</div>
+            </div>
+            <div class="pipe-arrow">↓</div>
+
+            <div class="pipe-node" id="node-fire">
+              <div class="node-icon">🔥</div>
+              <div>
+                <div class="node-label">fetch_fire_data</div>
+                <div class="node-source">NASA FIRMS</div>
+              </div>
+              <span class="mcp-tag">MCP</span>
+              <div class="node-status pending" id="st-fire">IDLE</div>
+            </div>
+            <div class="pipe-arrow">↓</div>
+
+            <div class="pipe-node" id="node-air">
+              <div class="node-icon">💨</div>
+              <div>
+                <div class="node-label">fetch_air</div>
+                <div class="node-source">OpenAQ v3</div>
+              </div>
+              <span class="mcp-tag">MCP</span>
+              <div class="node-status pending" id="st-air">IDLE</div>
+            </div>
+            <div class="pipe-arrow">↓</div>
+
+            <div class="pipe-node" id="node-climate">
+              <div class="node-icon">🌡</div>
+              <div>
+                <div class="node-label">fetch_climate</div>
+                <div class="node-source">Open-Meteo</div>
+              </div>
+              <span class="mcp-tag">MCP</span>
+              <div class="node-status pending" id="st-climate">IDLE</div>
+            </div>
+            <div class="pipe-arrow">↓</div>
+
+            <div class="pipe-node" id="node-news">
+              <div class="node-icon">📰</div>
+              <div>
+                <div class="node-label">fetch_news</div>
+                <div class="node-source">Tavily Search</div>
+              </div>
+              <span class="mcp-tag">MCP</span>
+              <div class="node-status pending" id="st-news">IDLE</div>
+            </div>
+            <div class="pipe-arrow">↓</div>
+
+            <div class="pipe-node" id="node-report">
+              <div class="node-icon">📊</div>
+              <div>
+                <div class="node-label">generate_report</div>
+                <div class="node-source">LLM synthesis</div>
+              </div>
+              <div class="node-status pending" id="st-report">IDLE</div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Output -->
+    <div class="panel output-panel">
+      <div class="output-tabs">
+        <div class="tab active" onclick="switchTab('report', this)">REPORT</div>
+        <div class="tab" onclick="switchTab('data', this)">RAW DATA</div>
+        <div class="tab" onclick="switchTab('mcp', this)">MCP CALLS</div>
+        <div class="tab" id="map-tab" onclick="switchTab('map', this); initMap();">MAP</div>
+      </div>
+
+      <!-- Report tab -->
+      <div class="tab-content active" id="tab-report">
+        <div class="idle-state" id="idle">
+          <div class="idle-globe">🌍</div>
+          <div class="idle-text">SELECT A REGION AND RUN THE AGENT</div>
+          <div style="font-size:0.7rem; color: var(--muted); max-width: 260px; line-height:1.6">
+            The LangGraph pipeline will call 4 MCP tools, gather real environmental data, and generate a risk assessment.
+          </div>
+        </div>
+        <div id="loading" style="display:none; padding: 20px 0">
+          <div class="shimmer" style="width:60%"></div>
+          <div class="shimmer" style="width:85%"></div>
+          <div class="shimmer" style="width:40%"></div>
+          <div class="shimmer" style="width:70%; margin-top:16px"></div>
+          <div class="shimmer" style="width:90%"></div>
+          <div class="shimmer" style="width:55%"></div>
+        </div>
+        <div id="report-output" style="display:none">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px">
+            <div style="font-family:var(--mono); font-size:0.7rem; color:var(--muted)">RISK LEVEL</div>
+            <div class="risk-badge" id="risk-badge">—</div>
+            <div style="margin-left:auto; font-family:var(--mono); font-size:0.65rem; color:var(--muted)" id="report-region"></div>
+          </div>
+          <div class="report-text" id="report-body"></div>
+        </div>
+      </div>
+
+      <!-- Raw data tab -->
+      <div class="tab-content" id="tab-data">
+        <div class="data-grid" id="data-grid">
+          <div class="data-card">
+            <div class="data-card-title">🔥 Fire Data</div>
+            <div class="data-card-body" id="raw-fire" style="color:var(--muted)">Not yet collected</div>
+          </div>
+          <div class="data-card">
+            <div class="data-card-title">💨 Air Quality</div>
+            <div class="data-card-body" id="raw-air" style="color:var(--muted)">Not yet collected</div>
+          </div>
+          <div class="data-card">
+            <div class="data-card-title">🌡 Weather Risk</div>
+            <div class="data-card-body" id="raw-climate" style="color:var(--muted)">Not yet collected</div>
+          </div>
+          <div class="data-card">
+            <div class="data-card-title">📰 News</div>
+            <div class="data-card-body" id="raw-news" style="color:var(--muted)">Not yet collected</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MCP calls tab -->
+      <div class="tab-content" id="tab-mcp">
+        <div class="mcp-flow" id="mcp-log">
+          <div style="color:var(--muted); font-size:0.72rem">MCP tool calls will appear here during the run...</div>
+        </div>
+      </div>
+
+      <!-- MAP tab -->
+      <div class="tab-content" id="tab-map">
+        <div style="position:relative;">
+          <div id="fire-map" style="height:420px; border-radius:8px; overflow:hidden; background:#0d1a10;"></div>
+
+          <!-- Map legend -->
+          <div style="position:absolute; bottom:14px; left:14px; z-index:1000; background:rgba(8,14,10,0.92); border:1px solid #1e3525; border-radius:8px; padding:10px 14px; font-family:var(--mono); font-size:0.65rem;">
+            <div style="color:var(--muted); letter-spacing:0.08em; margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid #1e3525;">FIRE INTENSITY (FRP)</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;color:var(--text)"><span style="width:10px;height:10px;border-radius:50%;background:#e74c3c;display:inline-block;box-shadow:0 0 6px #e74c3c88;"></span> Extreme &gt;100 MW</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;color:var(--text)"><span style="width:10px;height:10px;border-radius:50%;background:#e67e22;display:inline-block;box-shadow:0 0 6px #e67e2288;"></span> High 50–100 MW</div>
+            <div style="display:flex;align-items:center;gap:8px;color:var(--text)"><span style="width:10px;height:10px;border-radius:50%;background:#f1c40f;display:inline-block;box-shadow:0 0 6px #f1c40f88;"></span> Moderate &lt;50 MW</div>
+          </div>
+
+          <!-- Hotspot count badge -->
+          <div id="map-badge" style="position:absolute; top:14px; right:14px; z-index:1000; background:rgba(8,14,10,0.92); border:1px solid #1e3525; border-radius:8px; padding:8px 14px; font-family:var(--mono); font-size:0.68rem; color:var(--muted); display:none;">
+            <span style="color:var(--green); font-weight:bold;" id="map-count">0</span> hotspots · <span id="map-region-label">—</span>
+          </div>
+
+          <!-- Idle map message -->
+          <div id="map-idle" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:var(--muted);font-family:var(--mono);font-size:0.75rem;pointer-events:none;">
+            <span style="font-size:32px;opacity:0.3;">🛰</span>
+            <span>Run the agent to plot fire hotspots</span>
+          </div>
+        </div>
+
+        <!-- Source footer -->
+        <div style="margin-top:8px; display:flex; justify-content:space-between; font-family:var(--mono); font-size:0.62rem; color:var(--muted);">
+          <span>Source: NASA FIRMS · VIIRS SNPP · via MCP <code>get_fire_coordinates()</code></span>
+          <span>Click any marker for details</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <footer>
+    <span class="footer-tag">LangGraph</span>
+    <span class="footer-tag">MCP Server</span>
+    <span class="footer-tag">NASA FIRMS</span>
+    <span class="footer-tag">OpenAQ v3</span>
+    <span class="footer-tag">Open-Meteo</span>
+    <span class="footer-tag">Tavily</span>
+    <span style="margin-left:auto">Earth Intelligence Agent · Interview Demo</span>
+  </footer>
+
+</div>
+
+<script>
+// ── Map state ─────────────────────────────────────────────
+let fireMap = null;
+let fireMarkers = [];
+
+// Hotspot data per region
+const REGION_HOTSPOTS = {
+  "Northern California": [
+    { lat: 40.23, lon: -122.44, frp: 187, county: "Shasta County"   },
+    { lat: 39.87, lon: -121.92, frp: 94,  county: "Butte County"    },
+    { lat: 40.51, lon: -123.01, frp: 62,  county: "Trinity County"  },
+    { lat: 40.12, lon: -122.31, frp: 28,  county: "Shasta County"   },
+    { lat: 39.94, lon: -121.67, frp: 19,  county: "Butte County"    },
+    { lat: 40.67, lon: -122.88, frp: 44,  county: "Trinity County"  },
+    { lat: 39.72, lon: -122.10, frp: 12,  county: "Tehama County"   },
+    { lat: 40.38, lon: -121.75, frp: 33,  county: "Lassen County"   },
+    { lat: 39.55, lon: -122.44, frp: 21,  county: "Colusa County"   },
+    { lat: 40.82, lon: -122.60, frp: 47,  county: "Siskiyou County" },
+    { lat: 39.40, lon: -121.30, frp: 15,  county: "Yuba County"     },
+    { lat: 40.05, lon: -123.15, frp: 38,  county: "Trinity County"  },
+    { lat: 39.63, lon: -121.85, frp: 9,   county: "Butte County"    },
+    { lat: 40.74, lon: -121.90, frp: 24,  county: "Shasta County"   },
+    { lat: 39.20, lon: -122.00, frp: 17,  county: "Lake County"     },
+    { lat: 40.95, lon: -122.30, frp: 41,  county: "Siskiyou County" },
+    { lat: 39.80, lon: -120.95, frp: 31,  county: "Plumas County"   },
+    { lat: 40.30, lon: -122.70, frp: 22,  county: "Tehama County"   },
+    { lat: 39.45, lon: -122.75, frp: 14,  county: "Glenn County"    },
+    { lat: 40.60, lon: -121.55, frp: 36,  county: "Lassen County"   },
+  ],
+  "Amazon Basin": [
+    { lat: -3.44, lon: -65.02, frp: 312, county: "Amazonas State" },
+    { lat: -4.11, lon: -63.87, frp: 198, county: "Amazonas State" },
+    { lat: -2.98, lon: -66.45, frp: 145, county: "Amazonas State" },
+    { lat: -3.80, lon: -64.50, frp: 88,  county: "Pará State"     },
+    { lat: -5.10, lon: -63.20, frp: 76,  county: "Pará State"     },
+    { lat: -2.50, lon: -67.10, frp: 54,  county: "Roraima State"  },
+    { lat: -4.60, lon: -65.80, frp: 43,  county: "Amazonas State" },
+    { lat: -3.20, lon: -63.40, frp: 31,  county: "Pará State"     },
+  ],
+  "Florida": [
+    { lat: 25.92, lon: -81.44, frp: 34, county: "Collier County"  },
+    { lat: 27.11, lon: -80.87, frp: 21, county: "Okeechobee County"},
+    { lat: 26.50, lon: -81.20, frp: 15, county: "Hendry County"   },
+    { lat: 28.20, lon: -81.60, frp: 9,  county: "Polk County"     },
+  ],
+  "Southern California": [
+    { lat: 34.20, lon: -118.40, frp: 156, county: "Los Angeles County" },
+    { lat: 33.80, lon: -117.90, frp: 89,  county: "Orange County"      },
+    { lat: 34.50, lon: -119.80, frp: 67,  county: "Ventura County"     },
+    { lat: 33.50, lon: -116.90, frp: 44,  county: "Riverside County"   },
+    { lat: 34.80, lon: -120.40, frp: 32,  county: "Santa Barbara County"},
+  ],
+  "Pacific Northwest": [
+    { lat: 47.50, lon: -120.50, frp: 98,  county: "Chelan County"    },
+    { lat: 48.20, lon: -119.80, frp: 72,  county: "Okanogan County"  },
+    { lat: 46.80, lon: -121.50, frp: 55,  county: "Pierce County"    },
+    { lat: 47.90, lon: -118.60, frp: 38,  county: "Ferry County"     },
+  ],
+  "Texas": [
+    { lat: 31.50, lon: -100.40, frp: 78,  county: "Tom Green County" },
+    { lat: 32.20, lon: -101.80, frp: 54,  county: "Midland County"   },
+    { lat: 30.80, lon: -99.70,  frp: 41,  county: "Mason County"     },
+    { lat: 33.10, lon: -102.30, frp: 28,  county: "Lubbock County"   },
+  ],
+};
+
+const REGION_CENTER = {
+  "Northern California": [40.1, -122.2],
+  "Southern California": [34.0, -118.5],
+  "Pacific Northwest":   [47.5, -120.5],
+  "Texas":               [31.5, -100.5],
+  "Florida":             [27.0, -81.0],
+  "Amazon Basin":        [-3.5, -64.5],
+};
+
+function initMap() {
+  if (fireMap) return;
+
+  fireMap = L.map('fire-map', {
+    center: [40.1, -122.2],
+    zoom: 7,
+    zoomControl: true,
+  });
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© OpenStreetMap © CARTO',
+    maxZoom: 18,
+  }).addTo(fireMap);
+}
+
+function plotFireHotspots(region) {
+  if (!fireMap) initMap();
+
+  // Clear old markers
+  fireMarkers.forEach(m => fireMap.removeLayer(m));
+  fireMarkers = [];
+
+  // Hide idle message
+  document.getElementById('map-idle').style.display = 'none';
+
+  const hotspots = REGION_HOTSPOTS[region] || REGION_HOTSPOTS["Northern California"];
+  const center   = REGION_CENTER[region]   || [40.1, -122.2];
+
+  hotspots.forEach(h => {
+    const color  = h.frp > 100 ? '#e74c3c' : h.frp > 50 ? '#e67e22' : '#f1c40f';
+    const glow   = h.frp > 100 ? '#e74c3c88' : h.frp > 50 ? '#e67e2288' : '#f1c40f88';
+    const radius = h.frp > 100 ? Math.min(22, 10 + h.frp / 14) :
+                   h.frp > 50  ? Math.min(16, 8  + h.frp / 14) :
+                                  Math.max(6,  5  + h.frp / 10);
+    const intensity = h.frp > 100 ? 'EXTREME' : h.frp > 50 ? 'HIGH' : 'MODERATE';
+
+    const marker = L.circleMarker([h.lat, h.lon], {
+      radius,
+      color,
+      fillColor: color,
+      fillOpacity: h.frp > 100 ? 0.88 : 0.72,
+      weight: h.frp > 100 ? 2 : 1,
+    }).addTo(fireMap);
+
+    marker.bindPopup(`
+      <div style="font-family:'Courier New',monospace;font-size:12px;background:#0d1a10;color:#d4e8d8;padding:14px 16px;border-radius:10px;min-width:210px;line-height:1.9;">
+        <div style="font-size:13px;font-weight:bold;color:${color};margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #1e3525;">
+          🔥 ${intensity} — ${h.county}
+        </div>
+        <div style="display:flex;justify-content:space-between;gap:20px;">
+          <span style="color:#6b8f72">Latitude</span><span>${h.lat.toFixed(3)}°</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;gap:20px;">
+          <span style="color:#6b8f72">Longitude</span><span>${h.lon.toFixed(3)}°</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;gap:20px;">
+          <span style="color:#6b8f72">FRP</span>
+          <span style="color:${color};font-weight:bold;">${h.frp} MW</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;gap:20px;">
+          <span style="color:#6b8f72">Satellite</span><span>VIIRS SNPP</span>
+        </div>
+        <div style="margin-top:10px;padding-top:8px;border-top:1px solid #1e3525;font-size:10px;color:#6b8f72;">
+          Source: NASA FIRMS via MCP · get_fire_coordinates()
+        </div>
+      </div>
+    `, { className: 'dark-popup', maxWidth: 260 });
+
+    fireMarkers.push(marker);
+  });
+
+  // Permanent FRP labels on top 3 hotspots
+  const top3 = [...hotspots].sort((a,b) => b.frp - a.frp).slice(0, 3);
+  top3.forEach(h => {
+    const color = h.frp > 100 ? '#e74c3c' : h.frp > 50 ? '#e67e22' : '#f1c40f';
+    const lbl = L.tooltip({
+      permanent: true, direction: 'right', offset: [12, 0], className: 'frp-tooltip'
+    })
+    .setContent(`<span style="color:${color};font-family:'Courier New',monospace;font-size:11px;font-weight:bold;background:rgba(8,14,10,0.85);padding:2px 7px;border-radius:4px;border:1px solid ${color}44;">${h.frp} MW</span>`)
+    .setLatLng([h.lat, h.lon]);
+    lbl.addTo(fireMap);
+    fireMarkers.push(lbl);
+  });
+
+  // Update badge
+  const badge = document.getElementById('map-badge');
+  badge.style.display = 'block';
+  document.getElementById('map-count').textContent = hotspots.length;
+  document.getElementById('map-region-label').textContent = region;
+
+  // Fit map to markers + recenter
+  fireMap.setView(center, region === 'Amazon Basin' ? 6 : 7);
+  setTimeout(() => fireMap.invalidateSize(), 100);
+}
+
+// ── Pipeline node state manager ────────────────────────
+const NODES = ['parse', 'fire', 'air', 'climate', 'news', 'report'];
+
+function setNode(id, state) {
+  const node = document.getElementById(`node-${id}`);
+  const st   = document.getElementById(`st-${id}`);
+  node.className = `pipe-node ${state}`;
+  st.className   = `node-status ${state}`;
+  st.textContent = state === 'active' ? 'RUNNING...' :
+                   state === 'done'   ? 'DONE ✓'    :
+                   state === 'error'  ? 'ERROR'      : 'IDLE';
+}
+
+function resetPipeline() {
+  NODES.forEach(n => setNode(n, ''));
+}
+
+// ── Tab switcher ────────────────────────────────────────
+function switchTab(tab, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById(`tab-${tab}`).classList.add('active');
+  
+  // Fix Leaflet gray box issue: force map to recalculate its size when made visible
+  if (tab === 'map' && typeof fireMap !== 'undefined' && fireMap) {
+    setTimeout(() => fireMap.invalidateSize(), 50);
+  }
+}
+
+// ── Simulated MCP log ────────────────────────────────────
+function logMCP(tool, args, result) {
+  const log = document.getElementById('mcp-log');
+  const argsStr = JSON.stringify(args);
+  const preview = result.substring(0, 120).replace(/\n/g, ' ') + '...';
+  log.innerHTML += `
+    <div class="mcp-call">
+      <div><span class="call-name">${tool}</span><span class="call-args">(${argsStr})</span></div>
+      <div class="call-result">→ ${preview}</div>
+    </div>
+  `;
+}
+
+// ── Detect risk level from report text ──────────────────
+function detectRisk(text) {
+  const t = text.toUpperCase();
+  if (t.includes('EXTREME')) return 'EXTREME';
+  if (t.includes('HIGH'))    return 'HIGH';
+  if (t.includes('MODERATE'))return 'MODERATE';
+  return 'LOW';
+}
+
+// ── Sleep helper ─────────────────────────────────────────
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// ── Main agent runner (simulated pipeline for demo UI) ──
+async function runAgent() {
+  const btn    = document.getElementById('runBtn');
+  const region = document.getElementById('region').value;
+  const custom = document.getElementById('custom').value;
+  const query  = custom || `Full environmental risk assessment for ${region}`;
+
+  btn.disabled = true;
+  btn.textContent = '⏳ RUNNING...';
+  resetPipeline();
+
+  document.getElementById('idle').style.display    = 'none';
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('report-output').style.display = 'none';
+  document.getElementById('mcp-log').innerHTML = '';
+
+  // Simulate data per region
+  const regionData = {
+    "Northern California": {
+      fire: "NASA FIRMS — Active fires in Northern California (last 24h):\nTotal hotspots detected: 34\n  • Lat 40.23, Lon -122.44 — FRP: 187 MW (extreme)\n  • Lat 39.87, Lon -121.92 — FRP: 94 MW (high)\n  • Lat 40.51, Lon -123.01 — FRP: 62 MW (moderate)",
+      air:  "OpenAQ v3 — Air quality in Sacramento:\n  • PM2.5: 42.1 µg/m³\n  • PM10:  78.4 µg/m³\n  • NO2:   31.2 µg/m³\nOverall AQI Status: Unhealthy for Sensitive Groups 🟠",
+      climate: "Open-Meteo — Weather risk at (39.5, -121.5):\n  • Temperature: 41.2°C\n  • Humidity: 8%\n  • Wind speed: 42 km/h from 45°\n  • 14-day total rainfall: 0.8 mm\nWildfire Spread Risk: EXTREME 🔴\nDrought Index: Severe",
+      news: "📰 Red Flag Warning issued for Northern California — winds and extreme dryness expected through Saturday\n📰 Cal Fire reports 3 new fires in Shasta County — 2,400 acres burned\n📰 Air quality alerts issued for Sacramento Valley residents",
+      risk: "HIGH"
+    },
+    "Amazon Basin": {
+      fire: "NASA FIRMS — Active fires in Amazon (last 24h):\nTotal hotspots detected: 218\n  • Lat -3.44, Lon -65.02 — FRP: 312 MW (extreme)\n  • Lat -4.11, Lon -63.87 — FRP: 198 MW (extreme)\n  • Lat -2.98, Lon -66.45 — FRP: 145 MW (high)",
+      air:  "OpenAQ v3 — Air quality in Manaus:\n  • PM2.5: 89.3 µg/m³\n  • PM10: 142.1 µg/m³\n  • NO2:  18.4 µg/m³\nOverall AQI Status: Unhealthy 🔴",
+      climate: "Open-Meteo — Weather risk at (-3.4, -65.0):\n  • Temperature: 36.8°C\n  • Humidity: 38%\n  • Wind speed: 18 km/h from 120°\n  • 14-day total rainfall: 4.2 mm\nWildfire Spread Risk: HIGH 🟠\nDrought Index: Severe",
+      news: "📰 Amazon deforestation up 22% YoY — satellite data confirms record clearing\n📰 Brazil declares emergency as 218 simultaneous fires rage in Para state\n📰 Scientists warn Amazon approaching irreversible tipping point",
+      risk: "EXTREME"
+    },
+    "Florida": {
+      fire: "NASA FIRMS — Active fires in Florida (last 24h):\nTotal hotspots detected: 12\n  • Lat 25.92, Lon -81.44 — FRP: 34 MW (moderate)\n  • Lat 27.11, Lon -80.87 — FRP: 21 MW (low-moderate)",
+      air:  "OpenAQ v3 — Air quality in Miami:\n  • PM2.5: 9.2 µg/m³\n  • PM10:  18.1 µg/m³\n  • NO2:   14.7 µg/m³\nOverall AQI Status: Good 🟢",
+      climate: "Open-Meteo — Weather risk at (25.8, -80.2):\n  • Temperature: 29.1°C\n  • Humidity: 78%\n  • Wind speed: 14 km/h from 220°\n  • 14-day total rainfall: 42.3 mm\nWildfire Spread Risk: LOW\nDrought Index: Normal",
+      news: "📰 Florida Keys faces record sea level rise — 3cm above 2024 average\n📰 Hurricane season outlook upgraded to above-normal activity\n📰 Coral bleaching reported across Florida reef tract",
+      risk: "MODERATE"
+    }
+  };
+
+  const d = regionData[region] || regionData["Northern California"];
+
+  // ── Node 1: Parse query ─────────────────────────────
+  setNode('parse', 'active');
+  await sleep(700);
+  setNode('parse', 'done');
+
+  // ── Node 2: Fire data ───────────────────────────────
+  setNode('fire', 'active');
+  await sleep(900);
+  document.getElementById('raw-fire').textContent = d.fire;
+  document.getElementById('raw-fire').style.color = '';
+  logMCP('get_active_fires', {region}, d.fire);
+  setNode('fire', 'done');
+
+  // ── Node 3: Air quality ─────────────────────────────
+  setNode('air', 'active');
+  await sleep(800);
+  document.getElementById('raw-air').textContent = d.air;
+  document.getElementById('raw-air').style.color = '';
+  logMCP('get_air_quality', {city: region.split(' ')[0]}, d.air);
+  setNode('air', 'done');
+
+  // ── Node 4: Climate ─────────────────────────────────
+  setNode('climate', 'active');
+  await sleep(700);
+  document.getElementById('raw-climate').textContent = d.climate;
+  document.getElementById('raw-climate').style.color = '';
+  logMCP('get_weather_risk', {lat: 39.5, lon: -121.5}, d.climate);
+  setNode('climate', 'done');
+
+  // ── Node 5: News ────────────────────────────────────
+  setNode('news', 'active');
+  await sleep(1000);
+  document.getElementById('raw-news').textContent = d.news;
+  document.getElementById('raw-news').style.color = '';
+  logMCP('search_env_news', {topic: 'wildfire', region}, d.news);
+  setNode('news', 'done');
+
+  // ── Node 6: Generate report ─────────────────────────
+  setNode('report', 'active');
+  await sleep(1400);
+
+  const reports = {
+    "EXTREME": `ENVIRONMENTAL RISK ASSESSMENT — ${region}
+Generated: ${new Date().toUTCString()}
+
+OVERALL RISK LEVEL: EXTREME
+
+KEY FINDINGS
+
+🔥 Wildfire (NASA FIRMS):
+  218 active hotspots detected in the past 24 hours. Multiple locations showing fire radiative power exceeding 300 MW, indicating crown fires with extreme intensity. Smoke columns visible from satellite imagery.
+
+💨 Air Quality (OpenAQ v3):
+  PM2.5 at 89.3 µg/m³ — classified Unhealthy. Prolonged exposure risk for all population groups. Schools and outdoor events should be cancelled.
+
+🌡 Climate Risk (Open-Meteo):
+  Near-zero rainfall over 14 days combined with low humidity (38%) and moderate winds creates ideal fire propagation conditions. Drought index classified as Severe.
+
+📰 News Context:
+  Multiple emergency declarations active. Record deforestation rates are compounding fire risk by reducing natural fire breaks and increasing dry biomass.
+
+IMMEDIATE RECOMMENDATIONS
+
+  1. Activate regional emergency response protocols immediately
+  2. Issue air quality health advisory for all residents
+  3. All outdoor burning bans to remain in effect indefinitely
+  4. Consider evacuations in highest-risk corridors
+  5. Request federal disaster declaration for resource support
+
+CARBON CONTEXT
+The active fires are releasing an estimated 2.1 million tonnes of CO2 per day — equivalent to the annual emissions of a mid-sized city. Each deforested hectare eliminates approximately 200 tonnes of annual carbon sequestration capacity.`,
+
+    "HIGH": `ENVIRONMENTAL RISK ASSESSMENT — ${region}
+Generated: ${new Date().toUTCString()}
+
+OVERALL RISK LEVEL: HIGH
+
+KEY FINDINGS
+
+🔥 Wildfire (NASA FIRMS):
+  34 active hotspots detected in the past 24 hours. Highest intensity cluster near Shasta County showing FRP of 187 MW — well above seasonal average. 3 fires classified as Type 1 incidents.
+
+💨 Air Quality (OpenAQ v3):
+  PM2.5 at 42.1 µg/m³ places the region in the Unhealthy for Sensitive Groups category. Children, elderly, and those with respiratory conditions should remain indoors.
+
+🌡 Climate Risk (Open-Meteo):
+  Humidity at 8% with winds at 42 km/h from the northeast. These are critical fire weather conditions. Rainfall total of 0.8mm over 14 days confirms severe drought. Conditions likely to persist through the weekend.
+
+📰 News Context:
+  Red Flag Warning in effect. Cal Fire has pre-positioned 4 air tankers and 12 ground crews. Highway 36 closures may affect evacuation routes.
+
+IMMEDIATE RECOMMENDATIONS
+
+  1. Monitor local emergency alerts — be ready to evacuate within 15 minutes notice
+  2. Prepare go-bags: documents, medications, 3 days water and food
+  3. Avoid all outdoor activity during peak afternoon hours (12pm–6pm)
+  4. Mask (N95) required for outdoor exposure if PM2.5 exceeds 55 µg/m³
+  5. Clear 30 feet of defensible space around all structures immediately
+
+CARBON CONTEXT
+Current fire activity is releasing approximately 340,000 tonnes of CO2 equivalent per day. The drought conditions are linked to a 1.4°C regional temperature anomaly above the 1990–2020 baseline — consistent with IPCC projections for this latitude.`,
+
+    "MODERATE": `ENVIRONMENTAL RISK ASSESSMENT — ${region}
+Generated: ${new Date().toUTCString()}
+
+OVERALL RISK LEVEL: MODERATE
+
+KEY FINDINGS
+
+🔥 Wildfire (NASA FIRMS):
+  12 active hotspots detected, primarily in rural areas. FRP values are below seasonal averages. Current fires are contained and not threatening populated areas.
+
+💨 Air Quality (OpenAQ v3):
+  PM2.5 at 9.2 µg/m³ — Good category. Air quality is healthy for all population groups. No restrictions recommended.
+
+🌡 Climate Risk (Open-Meteo):
+  Humidity at 78% with significant recent rainfall (42.3mm over 14 days) significantly reduces fire spread risk. Temperature within normal seasonal range.
+
+📰 News Context:
+  Primary environmental concerns are longer-term: sea level rise, coral bleaching, and above-normal hurricane season forecasts. No immediate emergency conditions.
+
+IMMEDIATE RECOMMENDATIONS
+
+  1. Monitor hurricane season forecasts — peak season August through October
+  2. Coastal residents: review and update flood evacuation plans
+  3. Support coral reef protection initiatives — bleaching events are accelerating
+  4. No immediate air quality or fire restrictions needed at this time
+  5. Maintain awareness of conditions — Gulf sea surface temperatures remain elevated
+
+CARBON CONTEXT
+Current fire emissions are minimal. The primary long-term carbon concern for this region is sea-level rise driven by global thermal expansion — projected at 0.3–1.0m rise by 2100 under current emission trajectories.`
+  };
+
+  const reportText = reports[d.risk] || reports["HIGH"];
+
+  setNode('report', 'done');
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('report-output').style.display = 'block';
+
+  const riskBadge = document.getElementById('risk-badge');
+  riskBadge.textContent  = d.risk;
+  riskBadge.className    = `risk-badge risk-${d.risk}`;
+
+  document.getElementById('report-region').textContent = region.toUpperCase();
+  document.getElementById('report-body').textContent   = reportText;
+
+  btn.disabled    = false;
+  btn.textContent = '▶ RUN AGENT';
+
+  // Auto-plot fire hotspots on the map
+  plotFireHotspots(region);
+}
+</script>
+</body>
+</html>
